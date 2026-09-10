@@ -1,4 +1,4 @@
-# Automated Generative Marketing Collateral
+# Automated Marketing Content Creation
 
 It creates grounded B2B marketing collateral from "sender" and "receiver" company context. Currently, this process is highly manual, tedious, and difficult to scale for personalized marketing materials (like physical newsletters and brochures).
 
