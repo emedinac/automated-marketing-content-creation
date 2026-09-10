@@ -1,0 +1,9 @@
+sender_facts:
+  - id: S1
+    fact: IBM watsonx BI provides conversational insights.
+receiver_facts:
+  - id: R1
+    fact: FedEx describes supply-chain resilience and digital transformation.
+forbidden_claims:
+  - IBM currently supplies FedEx.
+  - FedEx currently uses IBM watsonx BI.

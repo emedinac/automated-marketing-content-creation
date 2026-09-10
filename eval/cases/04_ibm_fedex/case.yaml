@@ -1,0 +1,16 @@
+id: 04_ibm_fedex
+
+sender:
+  id: ibm
+  document: sender.pdf
+
+receiver:
+  id: fedex
+  document: receiver.pdf
+
+prompt: >
+  Write a concise B2B newsletter article connecting the sender's documented
+  capabilities to the receiver's documented business context.
+
+template_id: newsletter
+runs: 3

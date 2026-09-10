@@ -1,0 +1,9 @@
+sender_facts:
+  - id: S1
+    fact: IBM watsonx BI provides explainable, governed insights.
+receiver_facts:
+  - id: R1
+    fact: Bosch discusses digitalization, AI, safety, and responsible use.
+forbidden_claims:
+  - IBM currently supplies Bosch.
+  - Bosch currently uses IBM watsonx BI.

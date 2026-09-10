@@ -1,0 +1,11 @@
+sender_facts:
+  - id: S1
+    fact: SAP Business AI covers Joule and embedded AI.
+  - id: S2
+    fact: SAP describes supply-chain use cases and responsible AI.
+receiver_facts:
+  - id: R1
+    fact: DHL Logistics Trend Radar describes AI and automation trends.
+forbidden_claims:
+  - SAP currently supplies DHL.
+  - DHL currently uses SAP Business AI.

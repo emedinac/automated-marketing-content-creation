@@ -1,0 +1,11 @@
+sender_facts:
+  - id: S1
+    fact: IBM watsonx BI provides conversational insights.
+  - id: S2
+    fact: IBM describes governed data access and explainable insights.
+receiver_facts:
+  - id: R1
+    fact: DHL Logistics Trend Radar describes AI and automation trends.
+forbidden_claims:
+  - IBM currently supplies DHL.
+  - DHL currently uses IBM watsonx BI.

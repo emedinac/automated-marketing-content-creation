@@ -1,0 +1,164 @@
+%% Production target architecture — not implemented in the local prototype.
+%% The prototype is synchronous: POST /generate returns ArticleResult directly.
+flowchart TB
+
+    %% CLIENT
+    subgraph Client
+        UI[Customer C Client]
+    end
+
+    %% API
+    subgraph API["API Layer"]
+        GATEWAY[Google Cloud API Gateway]
+        SERVICE[Cloud Run / FastAPI]
+        AUTH{Auth check:<br/>API key / OAuth2}
+        UP["POST /upload"]
+        GEN["POST /generate<br/>returns job_id"]
+        STATUS["GET /status/{job_id}"]
+    end
+
+    %% INGESTION
+    subgraph Ingest["Ingestion Pipeline — Async"]
+        GCS[(Cloud Storage)]
+        PS1[[Pub/Sub<br/>ingest jobs]]
+        DOCAI[Document AI<br/>layout-aware parsing]
+        NORM[Normalize into<br/>Company Profile]
+        SANI[Sanitize document content<br/>treat instructions as data]
+    end
+
+    %% STORAGE
+    subgraph Store["Persistence"]
+        FS[(Firestore<br/>Company Profiles)]
+        VSEARCH[(Vertex AI Search<br/>optional)]
+        RAW[(Cloud Storage<br/>parsed source + assets)]
+        JOBS[(Firestore<br/>Job State + Results)]
+    end
+
+    %% GENERATION
+    subgraph Generation["Generation Pipeline — Async"]
+        PS2[[Pub/Sub<br/>generation jobs]]
+        WORKER[Generation Worker<br/>Cloud Run]
+        RETR[Retrieve sender +<br/>receiver context]
+        SANI2[Sanitize user prompt]
+        PB[Prompt Builder<br/>context treated as data]
+        LLM[Vertex AI Gemini<br/>schema-constrained output]
+        VAL{Schema +<br/>word limits valid?}
+        RC1{Retry count<br/>< N?}
+        CORRECTABLE{Word-limit<br/>error only?}
+        TRUNC[Deterministic<br/>word-limit correction]
+        FACT{Grounding /<br/>claim verification}
+        RC2{Retry count<br/>< N?}
+        PROV[Attach provenance<br/>claim => source references]
+        REVIEWPOLICY{Human review<br/>required?}
+        REVIEW[/Human Review Queue/]
+        IMGMATCH[Image Placeholder Matcher<br/>relevance + aspect ratio]
+        LAYOUT[Layout Mapper<br/>template => structured JSON]
+        FAILJOB[[Job Failed<br/>route to review]]
+    end
+
+    %% OBSERVABILITY
+    subgraph Obs["Observability"]
+        LOG[(Structured Logs<br/>request metadata / versions / status)]
+        METRICS[(Metrics<br/>latency / cost / retries / failures<br/>grounding + review rate + CI rejections)]
+        ALERT[Monitoring + Alerts]
+    end
+
+    %% OFFLINE EVALUATION / MLOPS
+    subgraph MLOps["Evaluation & MLOps — Offline"]
+        CURATE[Sample + curate<br/>production cases]
+        GOLDEN[(Golden Evaluation Set)]
+        EVAL[Offline Evaluation<br/>faithfulness / relevance / format]
+        CI{Quality Gate}
+        REG[(Prompt + Model Registry)]
+        REJECT[Candidate rejected<br/>keep current production version]
+    end
+
+    %% API FLOW
+    UI --> GATEWAY
+    GATEWAY --> SERVICE
+    SERVICE --> AUTH
+    AUTH -->|pass| UP
+    AUTH -->|pass| GEN
+    AUTH -->|pass| STATUS
+    AUTH -->|fail| UI
+    STATUS --> JOBS
+
+    %% INGESTION FLOW
+    UP --> GCS
+    GCS --> PS1
+    PS1 --> DOCAI
+    DOCAI --> NORM
+    DOCAI --> RAW
+    NORM --> SANI
+    SANI --> FS
+    NORM -. optional indexing .-> VSEARCH
+
+    %% GENERATION JOB FLOW
+    GEN -->|create queued job| JOBS
+    GEN --> PS2
+    PS2 --> WORKER
+    WORKER -->|mark processing| JOBS
+    WORKER --> RETR
+    FS --> RETR
+    VSEARCH -. optional semantic retrieval .-> RETR
+    RETR --> SANI2
+    SANI2 --> PB
+    REG -. prompt/model versions .-> PB
+    REG -. model version .-> LLM
+    PB --> LLM
+    LLM --> VAL
+
+    %% VALIDATION
+    VAL -->|pass| FACT
+    VAL -->|fail| RC1
+    RC1 -->|yes| PB
+    RC1 -->|no| CORRECTABLE
+    CORRECTABLE -->|yes| TRUNC
+    CORRECTABLE -->|no: invalid schema| FAILJOB
+    TRUNC --> FACT
+
+    %% GROUNDING
+    RAW -. source evidence .-> FACT
+    FACT -->|pass| PROV
+    FACT -->|fail| RC2
+    RC2 -->|yes| PB
+    RC2 -->|no| FAILJOB
+    FAILJOB -->|mark failed| JOBS
+
+    %% OUTPUT — POLICY-GATED REVIEW
+    PROV --> REVIEWPOLICY
+    REVIEWPOLICY -->|yes| REVIEW
+    REVIEWPOLICY -->|mark review required| JOBS
+    REVIEWPOLICY -->|no| IMGMATCH
+    REVIEW --> IMGMATCH
+    REVIEW -->|rejected| FAILJOB
+    IMGMATCH --> LAYOUT
+    LAYOUT -->|persist completed result| JOBS
+
+    %% OBSERVABILITY
+    WORKER -.-> LOG
+    LLM -.-> LOG
+    VAL -.-> LOG
+    FACT -.-> LOG
+    LAYOUT -.-> LOG
+    WORKER -.-> METRICS
+    LLM -.-> METRICS
+    FACT -.-> METRICS
+    VAL -.-> METRICS
+    RC1 -.-> METRICS
+    CORRECTABLE -.-> METRICS
+    RC2 -.-> METRICS
+    FAILJOB -.-> METRICS
+    REVIEW -.-> METRICS
+    REJECT -.-> METRICS
+    METRICS --> ALERT
+
+    %% EVALUATION LOOP
+    LOG --> CURATE
+    REVIEW -. approved corrections .-> CURATE
+    CURATE --> GOLDEN
+    GOLDEN --> EVAL
+    EVAL --> CI
+    CI -->|pass| REG
+    CI -->|fail| REJECT
+    REJECT -.-> ALERT

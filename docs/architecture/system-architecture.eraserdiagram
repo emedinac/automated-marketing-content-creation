@@ -1,0 +1,67 @@
+// Production target architecture — presentation view.
+// The local prototype is synchronous; production uses durable asynchronous jobs.
+cloud-architecture-diagram
+direction right
+colorMode pastel
+styleMode shadow
+typeface clean
+
+Client {
+    Customer [icon: laptop, label: "Customer C Client"]
+}
+
+API [label: "Secure API"] {
+    Gateway [icon: gcp-cloud-api-gateway, label: "GCP API Gateway"]
+    Service [icon: gcp-cloud-run, label: "Cloud Run / FastAPI (Auth, Upload, Generate, Status)"]
+}
+
+Ingestion [label: "Async Ingestion"] {
+    Uploaded_PDFs [icon: gcp-cloud-storage, label: "Cloud Storage (Uploaded PDFs)"]
+    Ingest_Topic [icon: gcp-pubsub, label: "Pub/Sub (Ingest Jobs)"]
+    Document_AI [icon: gcp-document-ai, label: "Document AI (Parse + Extract)"]
+}
+
+Generation [label: "Async Generation"] {
+    Generation_Topic [icon: gcp-pubsub, label: "Pub/Sub (Generation Jobs)"]
+    Worker [icon: gcp-cloud-run, label: "Generation Worker (Retrieve, Prompt, Validate, Ground)"]
+    Gemini [icon: gemini, label: "Vertex AI Gemini (Structured Output)"]
+    Review_Policy [label: "Review Required?"]
+    Review [label: "Human Review (When Required)"]
+}
+
+Data [label: "Durable Data"] {
+    Profiles [icon: gcp-firestore, label: "Firestore (Profiles + Job State)"]
+    Sources [icon: gcp-cloud-storage, label: "Cloud Storage (Parsed Sources + Assets)"]
+}
+
+Operations [label: "Quality + Operations"] {
+    Monitoring [icon: gcp-cloud-monitoring, label: "Logging, Metrics & Alerts"]
+    Evaluation [icon: gcp-cloud-build, label: "Curated Evaluation & CI Quality Gate"]
+}
+
+Customer > Gateway: HTTPS
+Gateway > Service
+
+Service > Uploaded_PDFs: Upload PDF
+Uploaded_PDFs > Ingest_Topic
+Ingest_Topic > Document_AI
+Document_AI > Profiles: Normalized Profile
+Document_AI > Sources: Parsed Sources + Assets
+
+Service > Profiles: Create / Read Job
+Service > Generation_Topic: Queue Generation
+Generation_Topic > Worker
+Profiles > Worker: Company Context
+Sources > Worker: Source Evidence
+Worker > Gemini: Grounded Prompt
+Gemini > Worker: Structured Draft
+Worker > Profiles: Persist Result / Review State
+Worker > Review_Policy: Review Required?
+Review_Policy > Review: Yes
+Review_Policy > Profiles: No - Auto Publish
+Review > Profiles: Approved Result or Rejected Job
+
+Service > Monitoring
+Worker > Monitoring
+Review > Evaluation: Approved Corrections
+Monitoring > Evaluation: Curated Production Cases

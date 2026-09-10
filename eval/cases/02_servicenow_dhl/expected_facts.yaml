@@ -1,0 +1,11 @@
+sender_facts:
+  - id: S1
+    fact: Now Assist applies generative AI to workflow challenges.
+  - id: S2
+    fact: Now Assist supports customer and employee experiences.
+receiver_facts:
+  - id: R1
+    fact: DHL Logistics Trend Radar describes AI and automation trends.
+forbidden_claims:
+  - ServiceNow currently supplies DHL.
+  - DHL currently uses ServiceNow Now Assist.

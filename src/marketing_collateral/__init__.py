@@ -1,0 +1,1 @@
+"""Marketing collateral prototype service."""
